@@ -1,49 +1,61 @@
-def process_text_file(input_filename, output_filename):
+import json
+
+def process_text_file(input_filename, output_filename, output_json):
+    """ 
+    Keep only lines that end with: . ? !  
+    Mark with [DANGER] the broken lines
+    Mark with [COMMA] the lines that end with comma
+    """
     # Initialize counters
     total_lines = 0
-    nodot_lines = 0
+    danger_lines = 0
     comma_lines = 0
+    danger_lines_id = []
+    lines_with_comma_id = []
+    
+    # Define valid ending punctuation
+    valid_endings = ['.', '!', '?']
     
     # Open files with UTF-8 encoding
     with open(input_filename, 'r', encoding='utf-8') as input_file, \
          open(output_filename, 'w', encoding='utf-8') as output_file:
         # Read the file line by line
         for line in input_file:
-            total_lines += 1
             # Remove trailing whitespace
             stripped_line = line.rstrip()
             
-            # Check if the line ends with a period
-            if not stripped_line.endswith('.'):
-                # No dot found, now check for comma
-                if not stripped_line.endswith(','):
-                    output_file.write(stripped_line + "[COMMA]\n")
-                    comma_lines += 1
-                else:
-                    output_file.write(stripped_line + "[NODOT]\n")
-                nodot_lines += 1
-            else:
-                # If period exists, write the original line
+            # Check if line ends with valid punctuation
+            if any(stripped_line.endswith(end) for end in valid_endings):
+                # If valid ending, write the original line
                 output_file.write(line)
+            elif stripped_line.endswith(','):
+                # If ends with comma, add [COMMA]
+                output_file.write(stripped_line + "[COMMA]\n")
+                comma_lines += 1
+                lines_with_comma_id.append(total_lines)
+            else:
+                # For all other cases, add [DANGER]
+                output_file.write(stripped_line + "[DANGER]\n")
+                danger_lines += 1
+                danger_lines_id.append(total_lines)
+            
+            # count lines
+            total_lines += 1
+            
+    # Create dictionary for JSON
+    output_data = {
+        "danger_lines": danger_lines_id,
+        "lines_with_comma_id": lines_with_comma_id
+        
+    }
+
+    # Write to JSON file
+    with open(output_json, 'w') as json_file:
+        json.dump(output_data, json_file, indent=4)
     
     # Calculate percentages
-    nodot_percentage = (nodot_lines / total_lines) * 100 if total_lines > 0 else 0
+    danger_percentage = (danger_lines / total_lines) * 100 if total_lines > 0 else 0
     comma_percentage = (comma_lines / total_lines) * 100 if total_lines > 0 else 0
-    clean_lines_percentage = ((total_lines - nodot_lines - comma_lines) / total_lines) * 100 if total_lines > 0 else 0
-    
-    return nodot_lines, comma_lines, total_lines, nodot_percentage, comma_percentage, clean_lines_percentage
-
-# Example usage
-if __name__ == "__main__":
-    input_file = "the-end.txt"    # Replace with your input filename
-    output_file = "the-end-output.txt"  # Replace with your desired output filename
-
-    try:
-        nodot_count, comma_count, total_count, nodot_percent, comma_percent, clean_lines_percentage = process_text_file(input_file, output_file)
-        print("\nFile processing completed successfully!")
-        print(f"Total number of lines: {total_count}")
-        print(f"Lines without dots: {nodot_count} ({nodot_percent:.2f}% of total lines)")
-        print(f"Lines with commas: {comma_count} ({comma_percent:.2f}% of total lines)")
-        print(f"Clean lines: {total_count - nodot_count - comma_count} ({clean_lines_percentage:.2f}% of total lines)")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    clean_lines_percentage = ((total_lines - danger_lines - comma_lines) / total_lines) * 100 if total_lines > 0 else 0
+        
+    return danger_lines, comma_lines, total_lines, danger_percentage, comma_percentage, clean_lines_percentage, danger_lines_id, lines_with_comma_id
